@@ -1,5 +1,4 @@
 import Componente from "../../../models/evidence/componenteModel.js";
-
 /**
  * Crea un componente.
  * @param {{componente:string,actividad:string,metaAnual:number}} data
@@ -35,10 +34,25 @@ const getComponenteByName = async (name) => {
   if (!doc) throw new Error("Componente no encontrado");
   return doc;
 };
+/**
+ * Devuelve componentes únicos por el campo `componente`.
+ * Si hay duplicados, se devuelve el primer documento según el orden definido en $sort.
+ * @returns {Promise<Array>}
+ */
+const getUniqueComponentes = async () => {
+  const resultado = await Componente.aggregate([
+    { $sort: { componente: 1, _id: 1 } },
+    { $group: { _id: "$componente", doc: { $first: "$$ROOT" } } },
+    { $replaceRoot: { newRoot: "$doc" } },
+    { $project: { __v: 0 } },
+  ]);
+  return resultado;
+};
 
 export default {
   createComponente,
   getAllComponentes,
   getComponenteById,
   getComponenteByName,
+  getUniqueComponentes
 };

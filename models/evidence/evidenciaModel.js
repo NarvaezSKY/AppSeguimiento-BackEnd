@@ -5,8 +5,8 @@ const evidenciaSchema = new mongoose.Schema({
     tipoEvidencia: { type: String, required: true },
     mes: { type: Number, required: true },
     anio: { type: Number, required: true },
-    responsables: [{ type: mongoose.Schema.Types.ObjectId, ref: "Responsable" }],
-    estado: { type: String, enum: ["Pendiente", "En progreso", "Completada"], default: "Pendiente" },
+    responsables: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    estado: { type: String, enum: ["Entregada", "Entrega futura", "Por entregar", "Entrega Extemporanea", "No logro"], default: "Por entregar" },
     fechaEntrega: { type: Date, required: true },
     creadoEn: { type: Date, default: Date.now }
 });

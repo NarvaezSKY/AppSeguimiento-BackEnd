@@ -34,4 +34,15 @@ const getById = async (req, res) => {
   }
 };
 
-export default { create, getAll, getById };
+// Nuevo: devuelve tasks agrupadas por componente
+const getTasksGrouped = async (req, res) => {
+  try {
+    const filters = { componente: req.query.componente, mes: req.query.mes, anio: req.query.anio, estado: req.query.estado };
+    const items = await evidenciaService.getTasksGroupedByComponente(filters);
+    return res.json({ success: true, data: items });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export default { create, getAll, getById, getTasksGrouped };
