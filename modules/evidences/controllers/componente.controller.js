@@ -45,4 +45,13 @@ const getByName = async (req, res) => {
   }
 };
 
-export default { create, getAll, getById, getByName };
+const getUniqueComponentes = async (req, res) => {
+  try {
+    const items = await componenteService.getUniqueComponentes();
+    return res.json({ success: true, data: items });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export default { create, getAll, getById, getByName, getUniqueComponentes };
