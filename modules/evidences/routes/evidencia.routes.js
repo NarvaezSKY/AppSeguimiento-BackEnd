@@ -10,6 +10,10 @@ router.get("/", evidenciaController.getAll);
 router.get("/tasks", evidenciaController.getTasksGrouped);
 
 // colocar rutas paramétricas al final
+
+// Ruta para actualizar solo el estado de una evidencia
+router.patch("/:id/estado", evidenciaController.updateEstado);
+
 router.get("/:id", evidenciaController.getById);
 
 export default router;

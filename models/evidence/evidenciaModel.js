@@ -8,7 +8,8 @@ const evidenciaSchema = new mongoose.Schema({
     responsables: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     estado: { type: String, enum: ["Entregada", "Entrega futura", "Por entregar", "Entrega Extemporanea", "No logro"], default: "Por entregar" },
     fechaEntrega: { type: Date, required: true },
-    creadoEn: { type: Date, default: Date.now }
+    creadoEn: { type: Date, default: Date.now },
+    entregadoEn: { type: Date, default: null },
 });
 
 export default mongoose.model("Evidencia", evidenciaSchema);
