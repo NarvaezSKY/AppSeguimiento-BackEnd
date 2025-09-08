@@ -11,7 +11,20 @@ const createEvidencia = async (data) => {
   if (!mongoose.Types.ObjectId.isValid(actividad)) throw new Error("ID de actividad inválido");
   const act = await Actividad.findById(actividad).populate("componente");
   if (!act) throw new Error("Actividad no encontrada");
-  const doc = new Evidencia({ actividad, tipoEvidencia, mes, anio, fechaEntrega, responsables: responsables || [], estado: estado || undefined });
+  let entregadoEn = null;
+  if (estado === "Entregada" || estado === "Entrega Extemporanea") {
+    entregadoEn = Date.now();
+  }
+  const doc = new Evidencia({
+    actividad,
+    tipoEvidencia,
+    mes,
+    anio,
+    fechaEntrega,
+    responsables: responsables || [],
+    estado: estado || undefined,
+    entregadoEn
+  });
   await doc.save();
   await doc.populate({ path: "actividad", populate: { path: "componente" } });
   await doc.populate("responsables");
@@ -84,4 +97,33 @@ export default {
   getAllEvidencias,
   getEvidenciaById,
   getTasksGroupedByComponente,
+  /**
+   * Actualiza solo el campo 'estado' de una evidencia.
+   */
+  async updateEvidenciaEstado(id, estado) {
+    if (!id) throw new Error("ID no proporcionado");
+    if (!mongoose.Types.ObjectId.isValid(id)) throw new Error("ID inválido");
+    if (!estado) throw new Error("Estado no proporcionado");
+    // Obtener la evidencia actual para comparar el estado anterior
+    const evidenciaActual = await Evidencia.findById(id);
+    if (!evidenciaActual) throw new Error("Evidencia no encontrada");
+    let entregadoEn = evidenciaActual.entregadoEn;
+    // Si el estado cambia a Entregada o Entrega Extemporanea y antes no era uno de esos, poner fecha actual
+    if ((estado === "Entregada" || estado === "Entrega Extemporanea") &&
+        (evidenciaActual.estado !== "Entregada" && evidenciaActual.estado !== "Entrega Extemporanea")) {
+      entregadoEn = Date.now();
+    } else if (estado !== "Entregada" && estado !== "Entrega Extemporanea") {
+      entregadoEn = null;
+    }
+    const doc = await Evidencia.findByIdAndUpdate(
+      id,
+      { estado, entregadoEn },
+      { new: true }
+    )
+      .populate({ path: "actividad", populate: { path: "componente" } })
+      .populate("responsables")
+      .select("-__v");
+    if (!doc) throw new Error("Evidencia no encontrada");
+    return doc;
+  },
 };

@@ -7,7 +7,8 @@ const create = async (req, res) => {
   } catch (err) {
     let status = 500;
     if (err.message.includes("Faltan")) status = 400;
-    if (err.message.includes("inválid") || err.message.includes("ID inválido")) status = 400;
+    if (err.message.includes("inválid") || err.message.includes("ID inválido"))
+      status = 400;
     if (err.message.includes("no encontrado")) status = 404;
     return res.status(status).json({ success: false, message: err.message });
   }
@@ -36,7 +37,13 @@ const getById = async (req, res) => {
     const item = await evidenciaService.getEvidenciaById(id);
     return res.json({ success: true, data: item });
   } catch (err) {
-    const status = err.message.includes("no proporcionado") || err.message.includes("inválid") ? 400 : err.message.includes("no encontrada") ? 404 : 500;
+    const status =
+      err.message.includes("no proporcionado") ||
+      err.message.includes("inválid")
+        ? 400
+        : err.message.includes("no encontrada")
+        ? 404
+        : 500;
     return res.status(status).json({ success: false, message: err.message });
   }
 };
@@ -58,4 +65,24 @@ const getTasksGrouped = async (req, res) => {
   }
 };
 
-export default { create, getAll, getById, getTasksGrouped };
+// Actualiza solo el campo 'estado' de una evidencia
+export const updateEstado = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { estado } = req.body;
+    const item = await evidenciaService.updateEvidenciaEstado(id, estado);
+    return res.json({ success: true, data: item });
+  } catch (err) {
+    const status =
+      err.message.includes("no proporcionado") ||
+      err.message.includes("inválid")
+        ? 400
+        : err.message.includes("no encontrada")
+        ? 404
+        : 500;
+    return res.status(status).json({ success: false, message: err.message });
+  }
+};
+
+// Agregar al export default
+export default { create, getAll, getById, getTasksGrouped, updateEstado };
