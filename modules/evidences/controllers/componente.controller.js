@@ -1,5 +1,6 @@
 import componenteService from "../services/componente.service.js";
 
+// crear
 const create = async (req, res) => {
   try {
     const item = await componenteService.createComponente(req.body);
@@ -14,6 +15,7 @@ const create = async (req, res) => {
   }
 };
 
+// listar todos
 const getAll = async (req, res) => {
   try {
     const items = await componenteService.getAllComponentes();
@@ -23,6 +25,7 @@ const getAll = async (req, res) => {
   }
 };
 
+// por id
 const getById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -34,6 +37,7 @@ const getById = async (req, res) => {
   }
 };
 
+// por nombre (partial, case-insensitive)
 const getByName = async (req, res) => {
   try {
     const { nombre } = req.params;
@@ -45,13 +49,4 @@ const getByName = async (req, res) => {
   }
 };
 
-const getUniqueComponentes = async (req, res) => {
-  try {
-    const items = await componenteService.getUniqueComponentes();
-    return res.json({ success: true, data: items });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: err.message });
-  }
-};
-
-export default { create, getAll, getById, getByName, getUniqueComponentes };
+export default { create, getAll, getById, getByName };
