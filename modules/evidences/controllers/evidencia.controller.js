@@ -15,7 +15,14 @@ const create = async (req, res) => {
 
 const getAll = async (req, res) => {
   try {
-    const filters = { componente: req.query.componente, mes: req.query.mes, anio: req.query.anio, estado: req.query.estado };
+    // normalizar/parsear query params
+    const filters = {
+      componente: req.query.componente || undefined,
+      actividad: req.query.actividad || undefined,
+      mes: req.query.mes != null ? Number(req.query.mes) : undefined,
+      anio: req.query.anio != null ? Number(req.query.anio) : undefined,
+      estado: req.query.estado || undefined,
+    };
     const items = await evidenciaService.getAllEvidencias(filters);
     return res.json({ success: true, data: items });
   } catch (err) {
@@ -37,7 +44,13 @@ const getById = async (req, res) => {
 // Nuevo: devuelve tasks agrupadas por componente
 const getTasksGrouped = async (req, res) => {
   try {
-    const filters = { componente: req.query.componente, mes: req.query.mes, anio: req.query.anio, estado: req.query.estado };
+    const filters = {
+      componente: req.query.componente || undefined,
+      actividad: req.query.actividad || undefined,
+      mes: req.query.mes != null ? Number(req.query.mes) : undefined,
+      anio: req.query.anio != null ? Number(req.query.anio) : undefined,
+      estado: req.query.estado || undefined,
+    };
     const items = await evidenciaService.getTasksGroupedByComponente(filters);
     return res.json({ success: true, data: items });
   } catch (err) {

@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
 const evidenciaSchema = new mongoose.Schema({
-    componente: { type: mongoose.Schema.Types.ObjectId, ref: "Componente", required: true },
+    actividad: { type: mongoose.Schema.Types.ObjectId, ref: "Actividad", required: true },
     tipoEvidencia: { type: String, required: true },
     mes: { type: Number, required: true },
     anio: { type: Number, required: true },
