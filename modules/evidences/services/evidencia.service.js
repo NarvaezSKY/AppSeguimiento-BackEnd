@@ -100,24 +100,24 @@ export default {
   /**
    * Actualiza solo el campo 'estado' de una evidencia.
    */
-  async updateEvidenciaEstado(id, estado) {
+  async updateEvidenciaEstado(id, estado, entregadoEn) {
     if (!id) throw new Error("ID no proporcionado");
     if (!mongoose.Types.ObjectId.isValid(id)) throw new Error("ID inválido");
     if (!estado) throw new Error("Estado no proporcionado");
     // Obtener la evidencia actual para comparar el estado anterior
     const evidenciaActual = await Evidencia.findById(id);
     if (!evidenciaActual) throw new Error("Evidencia no encontrada");
-    let entregadoEn = evidenciaActual.entregadoEn;
-    // Si el estado cambia a Entregada o Entrega Extemporanea y antes no era uno de esos, poner fecha actual
-    if ((estado === "Entregada" || estado === "Entrega Extemporanea") &&
-        (evidenciaActual.estado !== "Entregada" && evidenciaActual.estado !== "Entrega Extemporanea")) {
-      entregadoEn = Date.now();
-    } else if (estado !== "Entregada" && estado !== "Entrega Extemporanea") {
-      entregadoEn = null;
+    let nuevoEntregadoEn = evidenciaActual.entregadoEn;
+    // Si el estado es Entregada o Entrega Extemporanea, usar la fecha recibida; si no, null
+    if (estado === "Entregada" || estado === "Entrega Extemporanea") {
+      if (!entregadoEn) throw new Error("Debe proporcionar la fecha de entrega (entregadoEn)");
+      nuevoEntregadoEn = entregadoEn;
+    } else {
+      nuevoEntregadoEn = null;
     }
     const doc = await Evidencia.findByIdAndUpdate(
       id,
-      { estado, entregadoEn },
+      { estado, entregadoEn: nuevoEntregadoEn },
       { new: true }
     )
       .populate({ path: "actividad", populate: { path: "componente" } })
