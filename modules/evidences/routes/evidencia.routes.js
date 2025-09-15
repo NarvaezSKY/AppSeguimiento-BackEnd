@@ -7,6 +7,10 @@ router.post("/", evidenciaController.create);
 router.get("/", evidenciaController.getAll);
 
 // ruta para tasks agrupadas por componente (antes /evidencias)
+
+// Obtener actividades existentes en un trimestre
+router.get("/actividades/trimestre", evidenciaController.getActividadesByTrimestre);
+
 router.get("/tasks", evidenciaController.getTasksGrouped);
 
 // colocar rutas paramétricas al final

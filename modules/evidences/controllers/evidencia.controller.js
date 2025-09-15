@@ -1,3 +1,14 @@
+// Obtener actividades existentes en un trimestre
+const getActividadesByTrimestre = async (req, res) => {
+  try {
+    const { trimestre } = req.query;
+    if (trimestre == null) return res.status(400).json({ success: false, message: "Trimestre no proporcionado" });
+    const actividades = await evidenciaService.getActividadesByTrimestre(Number(trimestre));
+    return res.json({ success: true, data: actividades });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
 import evidenciaService from "../services/evidencia.service.js";
 
 const create = async (req, res) => {
@@ -85,4 +96,4 @@ export const updateEstado = async (req, res) => {
 };
 
 // Agregar al export default
-export default { create, getAll, getById, getTasksGrouped, updateEstado };
+export default { create, getAll, getById, getTasksGrouped, updateEstado, getActividadesByTrimestre };

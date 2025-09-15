@@ -1,3 +1,14 @@
+// Obtener responsables de evidencias por componente
+const getResponsables = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const usuarios = await componenteService.getResponsablesByComponente(id);
+    return res.json({ success: true, data: usuarios });
+  } catch (err) {
+    const status = err.message.includes("no proporcionado") ? 400 : err.message.includes("inválido") ? 400 : 500;
+    return res.status(status).json({ success: false, message: err.message });
+  }
+};
 import componenteService from "../services/componente.service.js";
 
 // crear
@@ -49,4 +60,4 @@ const getByName = async (req, res) => {
   }
 };
 
-export default { create, getAll, getById, getByName };
+export default { create, getAll, getById, getByName, getResponsables };
