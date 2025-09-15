@@ -2,9 +2,6 @@ import Evidencia from "../../../models/evidence/evidenciaModel.js";
 import Actividad from "../../../models/evidence/actividadModel.js";
 import mongoose from "mongoose";
 
-/**
- * Crea evidencia referenciando actividad.
- */
 const createEvidencia = async (data) => {
   const {
     actividad,
@@ -52,9 +49,6 @@ const createEvidencia = async (data) => {
   return obj;
 };
 
-/**
- * Obtiene evidencias; si se filtra por componente, primero se obtienen las actividades de ese componente.
- */
 const getAllEvidencias = async (filter = {}) => {
   const q = {};
   if (filter.actividad) q.actividad = filter.actividad;
@@ -63,13 +57,25 @@ const getAllEvidencias = async (filter = {}) => {
   if (filter.anio != null) q.anio = Number(filter.anio);
   if (filter.estado) q.estado = filter.estado;
 
+  if (filter.responsables) {
+    let arr = filter.responsables;
+    if (typeof arr === "string") {
+      arr = arr.split(",").map((s) => s.trim()).filter(Boolean);
+    }
+    if (!Array.isArray(arr) || !arr.length) throw new Error("Responsables no proporcionados");
+    const objIds = arr.map((id) => {
+      if (!mongoose.Types.ObjectId.isValid(id)) throw new Error("ID de responsable inválido");
+      return new mongoose.Types.ObjectId(id);
+    });
+    q.responsables = { $in: objIds };
+  } else if (filter.responsable) {
+    if (!mongoose.Types.ObjectId.isValid(filter.responsable)) throw new Error("ID de responsable inválido");
+    q.responsables = { $in: [new mongoose.Types.ObjectId(filter.responsable)] };
+  }
+
   if (filter.componente) {
-    // validar id y obtener actividades del componente
-    if (!mongoose.Types.ObjectId.isValid(filter.componente))
-      throw new Error("ID de componente inválido");
-    const actividades = await Actividad.find({
-      componente: filter.componente,
-    }).select("_id");
+    if (!mongoose.Types.ObjectId.isValid(filter.componente)) throw new Error("ID de componente inválido");
+    const actividades = await Actividad.find({ componente: filter.componente }).select("_id");
     if (!actividades.length) return []; // no hay actividades → no hay evidencias
     q.actividad = { $in: actividades.map((a) => a._id) };
   }
@@ -82,9 +88,6 @@ const getAllEvidencias = async (filter = {}) => {
   return list;
 };
 
-/**
- * Agrupa evidencias por componente (a través de actividad.componente).
- */
 const getTasksGroupedByComponente = async (filter = {}) => {
   const evidencias = await getAllEvidencias(filter);
 
@@ -138,7 +141,7 @@ export default {
     const actividades = await Actividad.find({ _id: { $in: actividadIds } }).select("-__v");
     return actividades;
   },
-  
+
   async updateEvidenciaEstado(id, estado, entregadoEn) {
     if (!id) throw new Error("ID no proporcionado");
     if (!mongoose.Types.ObjectId.isValid(id)) throw new Error("ID inválido");

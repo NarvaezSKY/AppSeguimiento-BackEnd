@@ -34,6 +34,8 @@ const getAll = async (req, res) => {
       mes: req.query.mes != null ? Number(req.query.mes) : undefined,
       anio: req.query.anio != null ? Number(req.query.anio) : undefined,
       estado: req.query.estado || undefined,
+      responsable: req.query.responsable || undefined,
+      trimestre: req.query.trimestre != null ? Number(req.query.trimestre) : undefined,
     };
     const items = await evidenciaService.getAllEvidencias(filters);
     return res.json({ success: true, data: items });
