@@ -51,7 +51,12 @@ const createEvidencia = async (data) => {
 
 const getAllEvidencias = async (filter = {}) => {
   const q = {};
-  if (filter.actividad) q.actividad = filter.actividad;
+  // actividad (valida y convierte)
+  if (filter.actividad) {
+    if (!mongoose.Types.ObjectId.isValid(filter.actividad)) throw new Error("ID de actividad inválido");
+    q.actividad = new mongoose.Types.ObjectId(filter.actividad);
+  }
+
   if (filter.mes != null) q.mes = Number(filter.mes);
   if (filter.trimestre != null) q.trimestre = Number(filter.trimestre);
   if (filter.anio != null) q.anio = Number(filter.anio);
@@ -75,9 +80,16 @@ const getAllEvidencias = async (filter = {}) => {
 
   if (filter.componente) {
     if (!mongoose.Types.ObjectId.isValid(filter.componente)) throw new Error("ID de componente inválido");
-    const actividades = await Actividad.find({ componente: filter.componente }).select("_id");
-    if (!actividades.length) return []; // no hay actividades → no hay evidencias
-    q.actividad = { $in: actividades.map((a) => a._id) };
+    // Si también se proporcionó actividad, validar que la actividad pertenezca al componente
+    if (q.actividad) {
+      const act = await Actividad.findOne({ _id: q.actividad, componente: filter.componente }).select("_id");
+      if (!act) return []; // la actividad no pertenece al componente -> no hay evidencias
+      q.actividad = act._id;
+    } else {
+      const actividades = await Actividad.find({ componente: filter.componente }).select("_id");
+      if (!actividades.length) return []; // no hay actividades → no hay evidencias
+      q.actividad = { $in: actividades.map((a) => a._id) };
+    }
   }
 
   const list = await Evidencia.find(q)

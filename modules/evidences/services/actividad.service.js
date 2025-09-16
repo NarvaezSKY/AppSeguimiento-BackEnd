@@ -1,5 +1,7 @@
 import Actividad from "../../../models/evidence/actividadModel.js";
 import Componente from "../../../models/evidence/componenteModel.js";
+import Evidencia from "../../../models/evidence/evidenciaModel.js";
+import mongoose from "mongoose";
 
 const createActividad = async (data) => {
   const { actividad, metaAnual, componente } = data || {};
@@ -24,4 +26,18 @@ const getActividadById = async (id) => {
   return doc;
 };
 
-export default { createActividad, getAllActividades, getActividadById };
+// nuevo: obtiene actividades en las que el usuario tiene evidencias asignadas
+const getActividadesByResponsable = async (userId) => {
+  if (!userId) throw new Error("ID de usuario no proporcionado");
+  if (!mongoose.Types.ObjectId.isValid(userId)) throw new Error("ID de usuario inválido");
+  // buscar evidencias donde el usuario aparece como responsable
+  const evidencias = await Evidencia.find({ responsables: userId }).select("actividad");
+  const actividadIds = [...new Set(evidencias.map(ev => ev.actividad?.toString()).filter(Boolean))];
+  if (!actividadIds.length) return [];
+  const actividades = await Actividad.find({ _id: { $in: actividadIds } })
+    .populate("componente")
+    .select("-__v");
+  return actividades;
+};
+
+export default { createActividad, getAllActividades, getActividadById, getActividadesByResponsable };

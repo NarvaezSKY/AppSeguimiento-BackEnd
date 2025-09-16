@@ -30,4 +30,16 @@ const getById = async (req, res) => {
   }
 };
 
-export default { create, getAll, getById };
+// nuevo: obtiene actividades por id de usuario (responsable)
+const getByResponsable = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const items = await actividadService.getActividadesByResponsable(userId);
+    return res.json({ success: true, data: items });
+  } catch (err) {
+    const status = err.message.includes("no proporcionado") || err.message.includes("inválido") ? 400 : 500;
+    return res.status(status).json({ success: false, message: err.message });
+  }
+};
+
+export default { create, getAll, getById, getByResponsable };
