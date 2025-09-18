@@ -1,2 +1,4 @@
 node_modules
 .env
+# evitar subir credenciales
+/config/google-credentials.json
