@@ -154,7 +154,7 @@ export default {
     return actividades;
   },
 
-  async updateEvidenciaEstado(id, estado, entregadoEn) {
+  async updateEvidenciaEstado(id, estado, entregadoEn, justificacion) {
     if (!id) throw new Error("ID no proporcionado");
     if (!mongoose.Types.ObjectId.isValid(id)) throw new Error("ID inválido");
     if (!estado) throw new Error("Estado no proporcionado");
@@ -176,11 +176,17 @@ export default {
         nuevoEstado = "Entregada";
       }
     } else {
+      // Si el estado es "No logro" requerimos justificación
+      if (estado.toLowerCase() === "no logro" || estado === "No logro" || estado === "No logro") {
+        if (!justificacion || String(justificacion).trim() === "") {
+          throw new Error("Se requiere justificacion cuando el estado es 'No logro'");
+        }
+      }
       nuevoEntregadoEn = null;
     }
     const doc = await Evidencia.findByIdAndUpdate(
       id,
-      { estado: nuevoEstado, entregadoEn: nuevoEntregadoEn },
+      { estado: nuevoEstado, entregadoEn: nuevoEntregadoEn, ...(estado.toLowerCase() === "no logro" || estado === "No logro" ? { justificacion } : {}) },
       { new: true }
     )
       .populate({ path: "actividad", populate: { path: "componente" } })

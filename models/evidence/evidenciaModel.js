@@ -19,6 +19,7 @@ const evidenciaSchema = new mongoose.Schema({
   fechaEntrega: { type: Date, required: true },
   creadoEn: { type: Date, default: Date.now },
   entregadoEn: { type: Date, default: null },
+  justificacion: { type: String, default: "" },
 });
 
 export default mongoose.model("Evidencia", evidenciaSchema);

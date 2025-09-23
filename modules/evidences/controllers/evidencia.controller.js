@@ -82,8 +82,8 @@ const getTasksGrouped = async (req, res) => {
 export const updateEstado = async (req, res) => {
   try {
     const { id } = req.params;
-    const { estado, entregadoEn } = req.body;
-    const item = await evidenciaService.updateEvidenciaEstado(id, estado, entregadoEn);
+    const { estado, entregadoEn, justificacion } = req.body;
+    const item = await evidenciaService.updateEvidenciaEstado(id, estado, entregadoEn, justificacion);
     return res.json({ success: true, data: item });
   } catch (err) {
     const status =
