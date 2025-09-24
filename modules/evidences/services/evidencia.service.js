@@ -1,6 +1,7 @@
 import Evidencia from "../../../models/evidence/evidenciaModel.js";
 import Actividad from "../../../models/evidence/actividadModel.js";
 import mongoose from "mongoose";
+import { addEvidenciaToSheet, updateEvidenciaInSheet } from "./sheets.service.js";
 
 const createEvidencia = async (data) => {
   const {
@@ -46,6 +47,12 @@ const createEvidencia = async (data) => {
   await doc.populate("responsables");
   const obj = doc.toObject();
   delete obj.__v;
+  
+  // Sincronizar con Google Sheet de forma asíncrona
+  addEvidenciaToSheet(obj).catch(err => 
+    console.error("Error sincronizando nueva evidencia con Google Sheet:", err.message)
+  );
+  
   return obj;
 };
 
@@ -193,6 +200,12 @@ export default {
       .populate("responsables")
       .select("-__v");
     if (!doc) throw new Error("Evidencia no encontrada");
+    
+    // Sincronizar actualización con Google Sheet de forma asíncrona
+    updateEvidenciaInSheet(doc).catch(err => 
+      console.error("Error sincronizando actualización de evidencia con Google Sheet:", err.message)
+    );
+    
     return doc;
   },
 };
