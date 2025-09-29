@@ -35,10 +35,17 @@ const getAll = async (req, res) => {
       anio: req.query.anio != null ? Number(req.query.anio) : undefined,
       estado: req.query.estado || undefined,
       responsable: req.query.responsable || undefined,
+      // soportar lista de responsables en query como 'responsables=id1,id2'
+      responsables: req.query.responsables || undefined,
+      // paginado opcional
+      page: req.query.page != null ? Number(req.query.page) : undefined,
+      limit: req.query.limit != null ? Number(req.query.limit) : undefined,
+      perPage: req.query.perPage != null ? Number(req.query.perPage) : undefined,
       trimestre: req.query.trimestre != null ? Number(req.query.trimestre) : undefined,
     };
-    const items = await evidenciaService.getAllEvidencias(filters);
-    return res.json({ success: true, data: items });
+    const result = await evidenciaService.getAllEvidencias(filters);
+    // devolver tal cual: si el service retorna paginado (obj), lo enviamos.
+    return res.json({ success: true, data: result });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }

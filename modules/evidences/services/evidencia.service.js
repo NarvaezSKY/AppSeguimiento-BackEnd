@@ -58,6 +58,16 @@ const createEvidencia = async (data) => {
 
 const getAllEvidencias = async (filter = {}) => {
   const q = {};
+  let usePagination = false;
+  let page = null;
+  let perPage = null;
+  if (filter.page != null && (filter.limit != null || filter.perPage != null)) {
+    page = Number(filter.page);
+    perPage = filter.limit != null ? Number(filter.limit) : Number(filter.perPage);
+    if (!Number.isInteger(page) || page < 1) throw new Error("Page inválido");
+    if (!Number.isInteger(perPage) || perPage < 1) throw new Error("Limit inválido");
+    usePagination = true;
+  }
   // actividad (valida y convierte)
   if (filter.actividad) {
     if (!mongoose.Types.ObjectId.isValid(filter.actividad)) throw new Error("ID de actividad inválido");
@@ -97,6 +107,22 @@ const getAllEvidencias = async (filter = {}) => {
       if (!actividades.length) return []; // no hay actividades → no hay evidencias
       q.actividad = { $in: actividades.map((a) => a._id) };
     }
+  }
+
+  // If pagination requested, compute total and apply skip/limit
+  if (usePagination) {
+    const total = await Evidencia.countDocuments(q);
+    const totalPages = Math.ceil(total / perPage);
+    // If requested page is beyond range, return empty items but valid metadata
+    const skip = (page - 1) * perPage;
+    const items = await Evidencia.find(q)
+      .populate({ path: "actividad", populate: { path: "componente" } })
+      .populate("responsables")
+      .select("-__v")
+      .skip(skip)
+      .limit(perPage);
+
+    return { items, total, page, totalPages, perPage };
   }
 
   const list = await Evidencia.find(q)

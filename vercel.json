@@ -1,0 +1,90 @@
+{
+  "version": 2,
+  "name": "appseguimiento-backend",
+  "builds": [
+    {
+      "src": "index.js",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": [
+          "app.js",
+          "config/**",
+          "database/**",
+          "models/**",
+          "modules/**",
+          "utils/**",
+          "package.json"
+        ]
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/index.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.js"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "functions": {
+    "index.js": {
+      "maxDuration": 30
+    }
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization, x-access-token"
+        },
+        {
+          "key": "Access-Control-Allow-Credentials",
+          "value": "true"
+        }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/auth/(.*)",
+      "destination": "/index.js"
+    },
+    {
+      "source": "/api/users/(.*)",
+      "destination": "/index.js"
+    },
+    {
+      "source": "/api/evidencias/(.*)",
+      "destination": "/index.js"
+    },
+    {
+      "source": "/api/actividades/(.*)",
+      "destination": "/index.js"
+    },
+    {
+      "source": "/api/componentes/(.*)",
+      "destination": "/index.js"
+    }
+  ],
+  "regions": ["iad1"],
+  "installCommand": "npm install",
+  "buildCommand": "echo 'No build step required'",
+  "outputDirectory": ".",
+  "cleanUrls": true,
+  "trailingSlash": false
+}
