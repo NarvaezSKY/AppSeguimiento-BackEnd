@@ -3,6 +3,43 @@ import Actividad from "../../../models/evidence/actividadModel.js";
 import mongoose from "mongoose";
 import { addEvidenciaToSheet, updateEvidenciaInSheet } from "./sheets.service.js";
 
+// -------------------- Helpers de sincronización Sheets --------------------
+const shouldAwaitSheetSync = () => {
+  const mode = (process.env.SHEETS_SYNC_MODE || "").toLowerCase();
+  if (mode === "await") return true;
+  if (mode === "async") return false;
+  return process.env.NODE_ENV === "production"; // default: await en prod
+};
+
+const getSyncTimeoutMs = () => {
+  const raw = process.env.SHEETS_SYNC_TIMEOUT_MS;
+  const n = raw ? Number(raw) : NaN;
+  if (!Number.isFinite(n) || n <= 0) return 4000; // default 4s
+  return n;
+};
+
+const runWithTimeout = async (promiseFactory, label, id) => {
+  const timeoutMs = getSyncTimeoutMs();
+  const t0 = Date.now();
+  let finished = false;
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => {
+      if (!finished) {
+        reject(new Error(`Timeout ${timeoutMs}ms en sincronización ${label}${id ? ' ' + id : ''}`));
+      }
+    }, timeoutMs);
+  });
+  try {
+    const result = await Promise.race([promiseFactory(), timeoutPromise]);
+    finished = true;
+    console.log(`[Sheets] ${label}${id ? ' ' + id : ''} OK en ${Date.now() - t0}ms`);
+    return result;
+  } catch (err) {
+    console.error(`[Sheets] ${label}${id ? ' ' + id : ''} ERROR tras ${Date.now() - t0}ms:`, err.message);
+    throw err;
+  }
+};
+
 const createEvidencia = async (data) => {
   const {
     actividad,
@@ -48,10 +85,18 @@ const createEvidencia = async (data) => {
   const obj = doc.toObject();
   delete obj.__v;
   
-  // Sincronizar con Google Sheet de forma asíncrona
-  addEvidenciaToSheet(obj).catch(err => 
-    console.error("Error sincronizando nueva evidencia con Google Sheet:", err.message)
-  );
+  // Sincronización con Google Sheet (condicional)
+  if (shouldAwaitSheetSync()) {
+    try {
+      await runWithTimeout(() => addEvidenciaToSheet(obj), 'Create evidencia', obj._id);
+    } catch (err) {
+      // No interrumpir la respuesta principal
+    }
+  } else {
+    addEvidenciaToSheet(obj)
+      .then(() => console.log(`[Sheets] (async) Create evidencia ${obj._id} OK`))
+      .catch(err => console.error(`[Sheets] (async) Create evidencia ${obj._id} ERROR:`, err.message));
+  }
   
   return obj;
 };
@@ -227,10 +272,18 @@ export default {
       .select("-__v");
     if (!doc) throw new Error("Evidencia no encontrada");
     
-    // Sincronizar actualización con Google Sheet de forma asíncrona
-    updateEvidenciaInSheet(doc).catch(err => 
-      console.error("Error sincronizando actualización de evidencia con Google Sheet:", err.message)
-    );
+    // Sincronización actualización
+    if (shouldAwaitSheetSync()) {
+      try {
+        await runWithTimeout(() => updateEvidenciaInSheet(doc), 'Update evidencia', doc._id);
+      } catch (err) {
+        // ya logueado dentro de runWithTimeout
+      }
+    } else {
+      updateEvidenciaInSheet(doc)
+        .then(() => console.log(`[Sheets] (async) Update evidencia ${doc._id} OK`))
+        .catch(err => console.error(`[Sheets] (async) Update evidencia ${doc._id} ERROR:`, err.message));
+    }
     
     return doc;
   },
