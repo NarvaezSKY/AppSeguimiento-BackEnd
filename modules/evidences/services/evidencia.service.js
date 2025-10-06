@@ -106,6 +106,7 @@ const getAllEvidencias = async (filter = {}) => {
   let usePagination = false;
   let page = null;
   let perPage = null;
+
   if (filter.page != null && (filter.limit != null || filter.perPage != null)) {
     page = Number(filter.page);
     perPage = filter.limit != null ? Number(filter.limit) : Number(filter.perPage);
@@ -113,7 +114,7 @@ const getAllEvidencias = async (filter = {}) => {
     if (!Number.isInteger(perPage) || perPage < 1) throw new Error("Limit inválido");
     usePagination = true;
   }
-  // actividad (valida y convierte)
+
   if (filter.actividad) {
     if (!mongoose.Types.ObjectId.isValid(filter.actividad)) throw new Error("ID de actividad inválido");
     q.actividad = new mongoose.Types.ObjectId(filter.actividad);
@@ -142,61 +143,154 @@ const getAllEvidencias = async (filter = {}) => {
 
   if (filter.componente) {
     if (!mongoose.Types.ObjectId.isValid(filter.componente)) throw new Error("ID de componente inválido");
-    // Si también se proporcionó actividad, validar que la actividad pertenezca al componente
     if (q.actividad) {
       const act = await Actividad.findOne({ _id: q.actividad, componente: filter.componente }).select("_id");
-      if (!act) return []; // la actividad no pertenece al componente -> no hay evidencias
+      if (!act) return usePagination ? { items: [], total: 0, page, totalPages: 0, perPage } : [];
       q.actividad = act._id;
     } else {
       const actividades = await Actividad.find({ componente: filter.componente }).select("_id");
-      if (!actividades.length) return []; // no hay actividades → no hay evidencias
+      if (!actividades.length) return usePagination ? { items: [], total: 0, page, totalPages: 0, perPage } : [];
       q.actividad = { $in: actividades.map((a) => a._id) };
     }
   }
 
-  // If pagination requested, compute total and apply skip/limit
-  if (usePagination) {
-    const total = await Evidencia.countDocuments(q);
-    const totalPages = Math.ceil(total / perPage);
-    // If requested page is beyond range, return empty items but valid metadata
-    const skip = (page - 1) * perPage;
-    const items = await Evidencia.find(q)
-      .populate({ path: "actividad", populate: { path: "componente" } })
-      .populate("responsables")
-      .select("-__v")
-      .skip(skip)
-      .limit(perPage);
+  const now = new Date();
+  const currentMonth = now.getMonth() + 1; // 1-12
+  const currentYear = now.getFullYear();
 
+  // Campos auxiliares robustos (conversión segura a número)
+  const addFieldsStage = {
+    $addFields: {
+      _mesNum: { $toInt: "$mes" },
+      _anioNum: { $toInt: "$anio" },
+    }
+  };
+
+  // monthOffset = diferencia en meses respecto al mes actual
+  const addOffsetStage = {
+    $addFields: {
+      monthOffset: {
+        $add: [
+          { $multiply: [{ $subtract: ["$_anioNum", currentYear] }, 12] },
+          { $subtract: ["$_mesNum", currentMonth] }
+        ]
+      }
+    }
+  };
+
+  // orderKey:
+  // 0  -> mes actual
+  // 1..n -> meses pasados (1 = mes pasado inmediato, 2 = hace 2 meses, etc.)
+  // 1001.. -> meses futuros (1001 = próximo mes, 1002 = en 2 meses, etc.)
+  const addOrderKeyStage = {
+    $addFields: {
+      orderKey: {
+        $cond: [
+          { $eq: ["$monthOffset", 0] },
+          0,
+          {
+            $cond: [
+              { $lt: ["$monthOffset", 0] },
+              { $multiply: ["$monthOffset", -1] }, // negativos => positivo incremental
+              { $add: [1000, "$monthOffset"] }      // futuros alejados al final
+            ]
+          }
+        ]
+      }
+    }
+  };
+
+  const cleanupProject = {
+    $project: {
+      __v: 0,
+      _mesNum: 0,
+      _anioNum: 0,
+      monthOffset: 0,
+      // orderKey se remueve después del populate (lo quitaremos manualmente por consistencia)
+    }
+  };
+
+  const sortStage = { $sort: { orderKey: 1, fechaEntrega: -1 } };
+
+  if (usePagination) {
+    const skip = (page - 1) * perPage;
+    const pipeline = [
+      { $match: q },
+      addFieldsStage,
+      addOffsetStage,
+      addOrderKeyStage,
+      sortStage,
+      {
+        $facet: {
+          metadata: [{ $count: "total" }],
+          items: [{ $skip: skip }, { $limit: perPage }, cleanupProject]
+        }
+      }
+    ];
+
+    const aggResult = await Evidencia.aggregate(pipeline);
+    const meta = aggResult[0]?.metadata?.[0] || { total: 0 };
+    let items = aggResult[0]?.items || [];
+
+    items = await Evidencia.populate(items, [
+      { path: "actividad", populate: { path: "componente" } },
+      { path: "responsables" },
+    ]);
+
+    items = items.map(d => {
+      if (d.toObject) d = d.toObject();
+      delete d.orderKey;
+      return d;
+    });
+
+    const total = meta.total;
+    const totalPages = Math.ceil(total / perPage);
     return { items, total, page, totalPages, perPage };
   }
 
-  const list = await Evidencia.find(q)
-    .populate({ path: "actividad", populate: { path: "componente" } })
-    .populate("responsables")
-    .select("-__v");
+  // Sin paginación
+  let list = await Evidencia.aggregate([
+    { $match: q },
+    addFieldsStage,
+    addOffsetStage,
+    addOrderKeyStage,
+    sortStage,
+    cleanupProject
+  ]);
+
+  list = await Evidencia.populate(list, [
+    { path: "actividad", populate: { path: "componente" } },
+    { path: "responsables" },
+  ]);
+
+  list = list.map(d => {
+    if (d.toObject) d = d.toObject();
+    delete d.orderKey;
+    return d;
+  });
 
   return list;
 };
 
 const getTasksGroupedByComponente = async (filter = {}) => {
-  const evidencias = await getAllEvidencias(filter);
-
+  const evidencias = await getAllEvidencias(filter); // Ya vienen ordenadas
   const map = new Map();
+
   for (const ev of evidencias) {
-    const evObj = ev.toObject();
+    const evObj = ev.toObject ? ev.toObject() : ev;
     const actividad = evObj.actividad;
     if (!actividad || !actividad.componente) continue;
     const comp = actividad.componente;
     const compId = comp._id.toString();
 
     if (!map.has(compId)) {
-      const compCopy = { ...comp, evidencias: [] };
+      const compCopy = { ...((comp.toObject && comp.toObject()) || comp), evidencias: [] };
       map.set(compId, compCopy);
     }
-
     map.get(compId).evidencias.push(evObj);
   }
 
+  // NO volvemos a ordenar para preservar el orden lógico creado en getAllEvidencias
   return Array.from(map.values());
 };
 
