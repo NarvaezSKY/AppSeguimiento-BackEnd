@@ -154,95 +154,78 @@ const getAllEvidencias = async (filter = {}) => {
     }
   }
 
-  const now = new Date();
-  const currentMonth = now.getMonth() + 1; // 1-12
-  const currentYear = now.getFullYear();
-
-  // Campos auxiliares robustos (conversión segura a número)
-  const addFieldsStage = {
-    $addFields: {
-      _mesNum: { $toInt: "$mes" },
-      _anioNum: { $toInt: "$anio" },
+  // Lookup para extraer el número inicial del nombre de la actividad (orden secundario)
+  // Ajustar 'actividads' si el nombre real de la colección difiere.
+  const lookupActividadOrden = {
+    $lookup: {
+      from: "actividads",
+      localField: "actividad",
+      foreignField: "_id",
+      as: "_actOrden"
     }
   };
-
-  // monthOffset = diferencia en meses respecto al mes actual
-  const addOffsetStage = {
+  const addActividadNumero = {
     $addFields: {
-      monthOffset: {
-        $add: [
-          { $multiply: [{ $subtract: ["$_anioNum", currentYear] }, 12] },
-          { $subtract: ["$_mesNum", currentMonth] }
-        ]
-      }
-    }
-  };
-
-  // orderKey:
-  // 0  -> mes actual
-  // 1..n -> meses pasados (1 = mes pasado inmediato, 2 = hace 2 meses, etc.)
-  // 1001.. -> meses futuros (1001 = próximo mes, 1002 = en 2 meses, etc.)
-  const addOrderKeyStage = {
-    $addFields: {
-      orderKey: {
-        $cond: [
-          { $eq: ["$monthOffset", 0] },
-          0,
-          {
+      _actNombre: { $arrayElemAt: ["$_actOrden.nombre", 0] },
+      _actNumero: {
+        $let: {
+          vars: {
+            match: {
+              $regexFind: {
+                input: { $arrayElemAt: ["$_actOrden.nombre", 0] },
+                regex: /^(\d+)/
+              }
+            }
+          },
+          in: {
             $cond: [
-              { $lt: ["$monthOffset", 0] },
-              { $multiply: ["$monthOffset", -1] }, // negativos => positivo incremental
-              { $add: [1000, "$monthOffset"] }      // futuros alejados al final
+              { $ifNull: ["$$match", false] },
+              { $toInt: { $arrayElemAt: ["$$match.captures", 0] } },
+              999999
             ]
           }
-        ]
+        }
       }
     }
   };
-
-  const cleanupProject = {
-    $project: {
-      __v: 0,
-      _mesNum: 0,
-      _anioNum: 0,
-      monthOffset: 0,
-      // orderKey se remueve después del populate (lo quitaremos manualmente por consistencia)
+  const sortStage = {
+    $sort: {
+      trimestre: 1,      // 1 -> 4
+      _actNumero: 1,     // Número inicial extraído del nombre de la actividad
+      _id: 1             // Desempate estable
     }
   };
-
-  const sortStage = { $sort: { orderKey: 1, fechaEntrega: -1 } };
+  const projectStage = { $project: { __v: 0, _actOrden: 0 } };
 
   if (usePagination) {
     const skip = (page - 1) * perPage;
     const pipeline = [
       { $match: q },
-      addFieldsStage,
-      addOffsetStage,
-      addOrderKeyStage,
+      lookupActividadOrden,
+      addActividadNumero,
       sortStage,
       {
         $facet: {
           metadata: [{ $count: "total" }],
-          items: [{ $skip: skip }, { $limit: perPage }, cleanupProject]
+          items: [
+            { $skip: skip },
+            { $limit: perPage },
+            projectStage
+          ]
         }
       }
     ];
-
     const aggResult = await Evidencia.aggregate(pipeline);
     const meta = aggResult[0]?.metadata?.[0] || { total: 0 };
     let items = aggResult[0]?.items || [];
 
+    // Populate real (actividad + componente, responsables)
     items = await Evidencia.populate(items, [
       { path: "actividad", populate: { path: "componente" } },
-      { path: "responsables" },
+      { path: "responsables" }
     ]);
 
-    items = items.map(d => {
-      if (d.toObject) d = d.toObject();
-      delete d.orderKey;
-      return d;
-    });
-
+    items = items.map(d => (d.toObject ? d.toObject() : d));
     const total = meta.total;
     const totalPages = Math.ceil(total / perPage);
     return { items, total, page, totalPages, perPage };
@@ -251,24 +234,18 @@ const getAllEvidencias = async (filter = {}) => {
   // Sin paginación
   let list = await Evidencia.aggregate([
     { $match: q },
-    addFieldsStage,
-    addOffsetStage,
-    addOrderKeyStage,
+    lookupActividadOrden,
+    addActividadNumero,
     sortStage,
-    cleanupProject
+    projectStage
   ]);
 
   list = await Evidencia.populate(list, [
     { path: "actividad", populate: { path: "componente" } },
-    { path: "responsables" },
+    { path: "responsables" }
   ]);
 
-  list = list.map(d => {
-    if (d.toObject) d = d.toObject();
-    delete d.orderKey;
-    return d;
-  });
-
+  list = list.map(d => (d.toObject ? d.toObject() : d));
   return list;
 };
 
