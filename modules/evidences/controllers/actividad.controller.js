@@ -5,7 +5,11 @@ const create = async (req, res) => {
     const item = await actividadService.createActividad(req.body);
     return res.status(201).json({ success: true, data: item });
   } catch (err) {
-    const status = err.message.includes("Faltan") ? 400 : err.message.includes("no encontrado") ? 404 : 500;
+    const status = err.message.includes("Faltan")
+      ? 400
+      : err.message.includes("no encontrado")
+      ? 404
+      : 500;
     return res.status(status).json({ success: false, message: err.message });
   }
 };
@@ -25,7 +29,11 @@ const getById = async (req, res) => {
     const item = await actividadService.getActividadById(id);
     return res.json({ success: true, data: item });
   } catch (err) {
-    const status = err.message.includes("no proporcionado") ? 400 : err.message.includes("no encontrada") ? 404 : 500;
+    const status = err.message.includes("no proporcionado")
+      ? 400
+      : err.message.includes("no encontrada")
+      ? 404
+      : 500;
     return res.status(status).json({ success: false, message: err.message });
   }
 };
@@ -34,10 +42,19 @@ const getById = async (req, res) => {
 const getByResponsable = async (req, res) => {
   try {
     const { userId } = req.params;
-    const items = await actividadService.getActividadesByResponsable(userId);
+    const { idComponente } = req.query; // Cambiado de params a query
+    const items = await actividadService.getActividadesByResponsable(
+      userId,
+      idComponente
+    );
     return res.json({ success: true, data: items });
   } catch (err) {
-    const status = err.message.includes("no proporcionado") || err.message.includes("inválido") ? 400 : 500;
+    const status =
+      err.message.includes("no proporcionado") ||
+      err.message.includes("inválido") ||
+      err.message.includes("no encontrado")
+        ? 400
+        : 500;
     return res.status(status).json({ success: false, message: err.message });
   }
 };

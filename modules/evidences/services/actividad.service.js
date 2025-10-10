@@ -27,17 +27,37 @@ const getActividadById = async (id) => {
 };
 
 // nuevo: obtiene actividades en las que el usuario tiene evidencias asignadas
-const getActividadesByResponsable = async (userId) => {
+const getActividadesByResponsable = async (userId, idComponente = null) => {
   if (!userId) throw new Error("ID de usuario no proporcionado");
   if (!mongoose.Types.ObjectId.isValid(userId)) throw new Error("ID de usuario inválido");
+  
+  // Validar componente si se proporciona
+  if (idComponente) {
+    if (!mongoose.Types.ObjectId.isValid(idComponente)) throw new Error("ID de componente inválido");
+    const comp = await Componente.findById(idComponente);
+    if (!comp) throw new Error("Componente no encontrado");
+  }
+  
   // buscar evidencias donde el usuario aparece como responsable
   const evidencias = await Evidencia.find({ responsables: userId }).select("actividad");
   const actividadIds = [...new Set(evidencias.map(ev => ev.actividad?.toString()).filter(Boolean))];
   if (!actividadIds.length) return [];
-  const actividades = await Actividad.find({ _id: { $in: actividadIds } })
+  
+  // Construir query para actividades
+  const query = { _id: { $in: actividadIds } };
+  
+  // Agregar filtro por componente si se proporciona
+  if (idComponente) {
+    query.componente = new mongoose.Types.ObjectId(idComponente);
+  }
+  
+  const actividades = await Actividad.find(query)
     .populate("componente")
     .select("-__v");
+    
   return actividades;
 };
+
+
 
 export default { createActividad, getAllActividades, getActividadById, getActividadesByResponsable };

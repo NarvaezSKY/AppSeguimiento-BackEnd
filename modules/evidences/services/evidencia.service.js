@@ -1,7 +1,10 @@
 import Evidencia from "../../../models/evidence/evidenciaModel.js";
 import Actividad from "../../../models/evidence/actividadModel.js";
 import mongoose from "mongoose";
-import { addEvidenciaToSheet, updateEvidenciaInSheet } from "./sheets.service.js";
+import {
+  addEvidenciaToSheet,
+  updateEvidenciaInSheet,
+} from "./sheets.service.js";
 
 // -------------------- Helpers de sincronización Sheets --------------------
 const shouldAwaitSheetSync = () => {
@@ -25,17 +28,28 @@ const runWithTimeout = async (promiseFactory, label, id) => {
   const timeoutPromise = new Promise((_, reject) => {
     setTimeout(() => {
       if (!finished) {
-        reject(new Error(`Timeout ${timeoutMs}ms en sincronización ${label}${id ? ' ' + id : ''}`));
+        reject(
+          new Error(
+            `Timeout ${timeoutMs}ms en sincronización ${label}${
+              id ? " " + id : ""
+            }`
+          )
+        );
       }
     }, timeoutMs);
   });
   try {
     const result = await Promise.race([promiseFactory(), timeoutPromise]);
     finished = true;
-    console.log(`[Sheets] ${label}${id ? ' ' + id : ''} OK en ${Date.now() - t0}ms`);
+    console.log(
+      `[Sheets] ${label}${id ? " " + id : ""} OK en ${Date.now() - t0}ms`
+    );
     return result;
   } catch (err) {
-    console.error(`[Sheets] ${label}${id ? ' ' + id : ''} ERROR tras ${Date.now() - t0}ms:`, err.message);
+    console.error(
+      `[Sheets] ${label}${id ? " " + id : ""} ERROR tras ${Date.now() - t0}ms:`,
+      err.message
+    );
     throw err;
   }
 };
@@ -84,20 +98,31 @@ const createEvidencia = async (data) => {
   await doc.populate("responsables");
   const obj = doc.toObject();
   delete obj.__v;
-  
+
   // Sincronización con Google Sheet (condicional)
   if (shouldAwaitSheetSync()) {
     try {
-      await runWithTimeout(() => addEvidenciaToSheet(obj), 'Create evidencia', obj._id);
+      await runWithTimeout(
+        () => addEvidenciaToSheet(obj),
+        "Create evidencia",
+        obj._id
+      );
     } catch (err) {
       // No interrumpir la respuesta principal
     }
   } else {
     addEvidenciaToSheet(obj)
-      .then(() => console.log(`[Sheets] (async) Create evidencia ${obj._id} OK`))
-      .catch(err => console.error(`[Sheets] (async) Create evidencia ${obj._id} ERROR:`, err.message));
+      .then(() =>
+        console.log(`[Sheets] (async) Create evidencia ${obj._id} OK`)
+      )
+      .catch((err) =>
+        console.error(
+          `[Sheets] (async) Create evidencia ${obj._id} ERROR:`,
+          err.message
+        )
+      );
   }
-  
+
   return obj;
 };
 
@@ -109,14 +134,17 @@ const getAllEvidencias = async (filter = {}) => {
 
   if (filter.page != null && (filter.limit != null || filter.perPage != null)) {
     page = Number(filter.page);
-    perPage = filter.limit != null ? Number(filter.limit) : Number(filter.perPage);
+    perPage =
+      filter.limit != null ? Number(filter.limit) : Number(filter.perPage);
     if (!Number.isInteger(page) || page < 1) throw new Error("Page inválido");
-    if (!Number.isInteger(perPage) || perPage < 1) throw new Error("Limit inválido");
+    if (!Number.isInteger(perPage) || perPage < 1)
+      throw new Error("Limit inválido");
     usePagination = true;
   }
 
   if (filter.actividad) {
-    if (!mongoose.Types.ObjectId.isValid(filter.actividad)) throw new Error("ID de actividad inválido");
+    if (!mongoose.Types.ObjectId.isValid(filter.actividad))
+      throw new Error("ID de actividad inválido");
     q.actividad = new mongoose.Types.ObjectId(filter.actividad);
   }
 
@@ -128,28 +156,46 @@ const getAllEvidencias = async (filter = {}) => {
   if (filter.responsables) {
     let arr = filter.responsables;
     if (typeof arr === "string") {
-      arr = arr.split(",").map((s) => s.trim()).filter(Boolean);
+      arr = arr
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
     }
-    if (!Array.isArray(arr) || !arr.length) throw new Error("Responsables no proporcionados");
+    if (!Array.isArray(arr) || !arr.length)
+      throw new Error("Responsables no proporcionados");
     const objIds = arr.map((id) => {
-      if (!mongoose.Types.ObjectId.isValid(id)) throw new Error("ID de responsable inválido");
+      if (!mongoose.Types.ObjectId.isValid(id))
+        throw new Error("ID de responsable inválido");
       return new mongoose.Types.ObjectId(id);
     });
     q.responsables = { $in: objIds };
   } else if (filter.responsable) {
-    if (!mongoose.Types.ObjectId.isValid(filter.responsable)) throw new Error("ID de responsable inválido");
+    if (!mongoose.Types.ObjectId.isValid(filter.responsable))
+      throw new Error("ID de responsable inválido");
     q.responsables = { $in: [new mongoose.Types.ObjectId(filter.responsable)] };
   }
 
   if (filter.componente) {
-    if (!mongoose.Types.ObjectId.isValid(filter.componente)) throw new Error("ID de componente inválido");
+    if (!mongoose.Types.ObjectId.isValid(filter.componente))
+      throw new Error("ID de componente inválido");
     if (q.actividad) {
-      const act = await Actividad.findOne({ _id: q.actividad, componente: filter.componente }).select("_id");
-      if (!act) return usePagination ? { items: [], total: 0, page, totalPages: 0, perPage } : [];
+      const act = await Actividad.findOne({
+        _id: q.actividad,
+        componente: filter.componente,
+      }).select("_id");
+      if (!act)
+        return usePagination
+          ? { items: [], total: 0, page, totalPages: 0, perPage }
+          : [];
       q.actividad = act._id;
     } else {
-      const actividades = await Actividad.find({ componente: filter.componente }).select("_id");
-      if (!actividades.length) return usePagination ? { items: [], total: 0, page, totalPages: 0, perPage } : [];
+      const actividades = await Actividad.find({
+        componente: filter.componente,
+      }).select("_id");
+      if (!actividades.length)
+        return usePagination
+          ? { items: [], total: 0, page, totalPages: 0, perPage }
+          : [];
       q.actividad = { $in: actividades.map((a) => a._id) };
     }
   }
@@ -161,8 +207,8 @@ const getAllEvidencias = async (filter = {}) => {
       from: "actividads",
       localField: "actividad",
       foreignField: "_id",
-      as: "_actOrden"
-    }
+      as: "_actOrden",
+    },
   };
   const addActividadNumero = {
     $addFields: {
@@ -173,27 +219,27 @@ const getAllEvidencias = async (filter = {}) => {
             match: {
               $regexFind: {
                 input: { $arrayElemAt: ["$_actOrden.nombre", 0] },
-                regex: /^(\d+)/
-              }
-            }
+                regex: /^(\d+)/,
+              },
+            },
           },
           in: {
             $cond: [
               { $ifNull: ["$$match", false] },
               { $toInt: { $arrayElemAt: ["$$match.captures", 0] } },
-              999999
-            ]
-          }
-        }
-      }
-    }
+              999999,
+            ],
+          },
+        },
+      },
+    },
   };
   const sortStage = {
     $sort: {
-      trimestre: 1,      // 1 -> 4
-      _actNumero: 1,     // Número inicial extraído del nombre de la actividad
-      _id: 1             // Desempate estable
-    }
+      trimestre: 1, // 1 -> 4
+      _actNumero: 1, // Número inicial extraído del nombre de la actividad
+      _id: 1, // Desempate estable
+    },
   };
   const projectStage = { $project: { __v: 0, _actOrden: 0 } };
 
@@ -207,13 +253,9 @@ const getAllEvidencias = async (filter = {}) => {
       {
         $facet: {
           metadata: [{ $count: "total" }],
-          items: [
-            { $skip: skip },
-            { $limit: perPage },
-            projectStage
-          ]
-        }
-      }
+          items: [{ $skip: skip }, { $limit: perPage }, projectStage],
+        },
+      },
     ];
     const aggResult = await Evidencia.aggregate(pipeline);
     const meta = aggResult[0]?.metadata?.[0] || { total: 0 };
@@ -222,10 +264,10 @@ const getAllEvidencias = async (filter = {}) => {
     // Populate real (actividad + componente, responsables)
     items = await Evidencia.populate(items, [
       { path: "actividad", populate: { path: "componente" } },
-      { path: "responsables" }
+      { path: "responsables" },
     ]);
 
-    items = items.map(d => (d.toObject ? d.toObject() : d));
+    items = items.map((d) => (d.toObject ? d.toObject() : d));
     const total = meta.total;
     const totalPages = Math.ceil(total / perPage);
     return { items, total, page, totalPages, perPage };
@@ -237,20 +279,20 @@ const getAllEvidencias = async (filter = {}) => {
     lookupActividadOrden,
     addActividadNumero,
     sortStage,
-    projectStage
+    projectStage,
   ]);
 
   list = await Evidencia.populate(list, [
     { path: "actividad", populate: { path: "componente" } },
-    { path: "responsables" }
+    { path: "responsables" },
   ]);
 
-  list = list.map(d => (d.toObject ? d.toObject() : d));
+  list = list.map((d) => (d.toObject ? d.toObject() : d));
   return list;
 };
 
 const getTasksGroupedByComponente = async (filter = {}) => {
-  const evidencias = await getAllEvidencias(filter); // Ya vienen ordenadas
+  const evidencias = await getAllEvidencias(filter);
   const map = new Map();
 
   for (const ev of evidencias) {
@@ -261,7 +303,10 @@ const getTasksGroupedByComponente = async (filter = {}) => {
     const compId = comp._id.toString();
 
     if (!map.has(compId)) {
-      const compCopy = { ...((comp.toObject && comp.toObject()) || comp), evidencias: [] };
+      const compCopy = {
+        ...((comp.toObject && comp.toObject()) || comp),
+        evidencias: [],
+      };
       map.set(compId, compCopy);
     }
     map.get(compId).evidencias.push(evObj);
@@ -296,10 +341,18 @@ export default {
     if (trimestre == null) throw new Error("Trimestre no proporcionado");
     // Buscar evidencias del trimestre
     const evidencias = await Evidencia.find({ trimestre }).select("actividad");
-    const actividadIds = [...new Set(evidencias.map(ev => ev.actividad?.toString()).filter(Boolean))];
+    const actividadIds = [
+      ...new Set(
+        evidencias.map((ev) => ev.actividad?.toString()).filter(Boolean)
+      ),
+    ];
     if (!actividadIds.length) return [];
-    const Actividad = (await import("../../../models/evidence/actividadModel.js")).default;
-    const actividades = await Actividad.find({ _id: { $in: actividadIds } }).select("-__v");
+    const Actividad = (
+      await import("../../../models/evidence/actividadModel.js")
+    ).default;
+    const actividades = await Actividad.find({
+      _id: { $in: actividadIds },
+    }).select("-__v");
     return actividades;
   },
 
@@ -317,7 +370,11 @@ export default {
       nuevoEntregadoEn = entregadoEn;
       // Validar si la entrega es extemporánea
       const fechaMaxima = evidenciaActual.fechaEntrega;
-      if (nuevoEntregadoEn && fechaMaxima && new Date(nuevoEntregadoEn) > new Date(fechaMaxima)) {
+      if (
+        nuevoEntregadoEn &&
+        fechaMaxima &&
+        new Date(nuevoEntregadoEn) > new Date(fechaMaxima)
+      ) {
         nuevoEstado = "Entrega Extemporanea";
       } else if (estado === "Entrega Extemporanea") {
         nuevoEstado = "Entrega Extemporanea";
@@ -326,36 +383,59 @@ export default {
       }
     } else {
       // Si el estado es "No logro" requerimos justificación
-      if (estado.toLowerCase() === "no logro" || estado === "No logro" || estado === "No logro") {
+      if (
+        estado.toLowerCase() === "no logro" ||
+        estado === "No logro" ||
+        estado === "No logro"
+      ) {
         if (!justificacion || String(justificacion).trim() === "") {
-          throw new Error("Se requiere justificacion cuando el estado es 'No logro'");
+          throw new Error(
+            "Se requiere justificacion cuando el estado es 'No logro'"
+          );
         }
       }
       nuevoEntregadoEn = null;
     }
     const doc = await Evidencia.findByIdAndUpdate(
       id,
-      { estado: nuevoEstado, entregadoEn: nuevoEntregadoEn, ...(estado.toLowerCase() === "no logro" || estado === "No logro" ? { justificacion } : {}) },
+      {
+        estado: nuevoEstado,
+        entregadoEn: nuevoEntregadoEn,
+        ...(estado.toLowerCase() === "no logro" || estado === "No logro"
+          ? { justificacion }
+          : {}),
+      },
       { new: true }
     )
       .populate({ path: "actividad", populate: { path: "componente" } })
       .populate("responsables")
       .select("-__v");
     if (!doc) throw new Error("Evidencia no encontrada");
-    
+
     // Sincronización actualización
     if (shouldAwaitSheetSync()) {
       try {
-        await runWithTimeout(() => updateEvidenciaInSheet(doc), 'Update evidencia', doc._id);
+        await runWithTimeout(
+          () => updateEvidenciaInSheet(doc),
+          "Update evidencia",
+          doc._id
+        );
       } catch (err) {
         // ya logueado dentro de runWithTimeout
       }
     } else {
       updateEvidenciaInSheet(doc)
-        .then(() => console.log(`[Sheets] (async) Update evidencia ${doc._id} OK`))
-        .catch(err => console.error(`[Sheets] (async) Update evidencia ${doc._id} ERROR:`, err.message));
+        .then(() =>
+          console.log(`[Sheets] (async) Update evidencia ${doc._id} OK`)
+        )
+        .catch((err) =>
+          console.error(
+            `[Sheets] (async) Update evidencia ${doc._id} ERROR:`,
+            err.message
+          )
+        );
     }
-    
+
     return doc;
   },
 };

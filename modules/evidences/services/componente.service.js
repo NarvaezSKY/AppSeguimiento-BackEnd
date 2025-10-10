@@ -71,4 +71,44 @@ export default {
     const usuarios = await User.find({ _id: { $in: Array.from(userIds) } }).select("-__v");
     return usuarios;
   },
+
+  /**
+   * Obtiene los componentes asociados a un usuario (donde el usuario es responsable de evidencias).
+   * @param {string} userId
+   * @returns {Promise<Array>} Array de componentes únicos
+   */
+  async getComponentesByUsuario(userId) {
+    if (!userId) throw new Error("ID de usuario no proporcionado");
+    if (!mongoose.Types.ObjectId.isValid(userId)) throw new Error("ID de usuario inválido");
+    
+    const Actividad = (await import("../../../models/evidence/actividadModel.js")).default;
+    const Evidencia = (await import("../../../models/evidence/evidenciaModel.js")).default;
+    
+    // Buscar evidencias donde el usuario es responsable
+    const evidencias = await Evidencia.find({ 
+      responsables: { $in: [new mongoose.Types.ObjectId(userId)] } 
+    }).select("actividad");
+    
+    if (!evidencias.length) return [];
+    
+    const actividadIds = [...new Set(evidencias.map(ev => ev.actividad?.toString()).filter(Boolean))];
+    if (!actividadIds.length) return [];
+    
+    // Buscar actividades y obtener componentes únicos
+    const actividades = await Actividad.find({ 
+      _id: { $in: actividadIds } 
+    }).populate("componente").select("componente");
+    
+    const componentesMap = new Map();
+    for (const act of actividades) {
+      if (act.componente) {
+        const comp = act.componente;
+        const compObj = comp.toObject ? comp.toObject() : comp;
+        delete compObj.__v;
+        componentesMap.set(comp._id.toString(), compObj);
+      }
+    }
+    
+    return Array.from(componentesMap.values());
+  },
 };

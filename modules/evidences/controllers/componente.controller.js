@@ -60,4 +60,16 @@ const getByName = async (req, res) => {
   }
 };
 
-export default { create, getAll, getById, getByName, getResponsables };
+// Obtener componentes por usuario
+const getComponentesByUsuario = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const componentes = await componenteService.getComponentesByUsuario(userId);
+    return res.json({ success: true, data: componentes });
+  } catch (err) {
+    const status = err.message.includes("no proporcionado") ? 400 : err.message.includes("inválido") ? 400 : 500;
+    return res.status(status).json({ success: false, message: err.message });
+  }
+};
+
+export default { create, getAll, getById, getByName, getResponsables, getComponentesByUsuario };
