@@ -26,7 +26,7 @@ const getActividadById = async (id) => {
   return doc;
 };
 
-// nuevo: obtiene actividades en las que el usuario tiene evidencias asignadas
+// nuevo: obtiene actividades en las que el usuario tiene evidencias asignadas, agrupadas por año
 const getActividadesByResponsable = async (userId, idComponente = null) => {
   if (!userId) throw new Error("ID de usuario no proporcionado");
   if (!mongoose.Types.ObjectId.isValid(userId)) throw new Error("ID de usuario inválido");
@@ -39,23 +39,42 @@ const getActividadesByResponsable = async (userId, idComponente = null) => {
   }
   
   // buscar evidencias donde el usuario aparece como responsable
-  const evidencias = await Evidencia.find({ responsables: userId }).select("actividad");
-  const actividadIds = [...new Set(evidencias.map(ev => ev.actividad?.toString()).filter(Boolean))];
-  if (!actividadIds.length) return [];
+  const evidencias = await Evidencia.find({ responsables: userId }).select("actividad anio");
   
-  // Construir query para actividades
-  const query = { _id: { $in: actividadIds } };
-  
-  // Agregar filtro por componente si se proporciona
-  if (idComponente) {
-    query.componente = new mongoose.Types.ObjectId(idComponente);
+  // Agrupar por año
+  const actividadPorAnio = {};
+  for (const ev of evidencias) {
+    if (!ev.actividad) continue;
+    const anio = String(ev.anio);
+    if (!actividadPorAnio[anio]) {
+      actividadPorAnio[anio] = new Set();
+    }
+    actividadPorAnio[anio].add(ev.actividad.toString());
   }
   
-  const actividades = await Actividad.find(query)
-    .populate("componente")
-    .select("-__v");
+  if (Object.keys(actividadPorAnio).length === 0) return {};
+  
+  // Para cada año, obtener las actividades
+  const resultado = {};
+  for (const [anio, actividadIdsSet] of Object.entries(actividadPorAnio)) {
+    const actividadIds = Array.from(actividadIdsSet);
     
-  return actividades;
+    // Construir query para actividades
+    const query = { _id: { $in: actividadIds } };
+    
+    // Agregar filtro por componente si se proporciona
+    if (idComponente) {
+      query.componente = new mongoose.Types.ObjectId(idComponente);
+    }
+    
+    const actividades = await Actividad.find(query)
+      .populate("componente")
+      .select("-__v");
+    
+    resultado[anio] = actividades;
+  }
+  
+  return resultado;
 };
 
 
