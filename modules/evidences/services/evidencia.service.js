@@ -1,5 +1,6 @@
 import Evidencia from "../../../models/evidence/evidenciaModel.js";
 import Actividad from "../../../models/evidence/actividadModel.js";
+import User from "../../../models/userModel.js";
 import mongoose from "mongoose";
 import {
   addEvidenciaToSheet,
@@ -52,6 +53,34 @@ const runWithTimeout = async (promiseFactory, label, id) => {
     );
     throw err;
   }
+};
+
+const normalizeResponsablesInput = (responsables) => {
+  let arr = responsables;
+
+  if (typeof arr === "string") {
+    arr = arr
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+
+  if (!Array.isArray(arr)) {
+    arr = arr != null ? [String(arr)] : [];
+  }
+
+  const dedup = [...new Set(arr.map((id) => String(id).trim()).filter(Boolean))];
+  if (!dedup.length) {
+    throw new Error("Debe proporcionar al menos un responsable");
+  }
+
+  for (const id of dedup) {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      throw new Error("ID de responsable inválido");
+    }
+  }
+
+  return dedup;
 };
 
 const createEvidencia = async (data) => {
@@ -431,6 +460,60 @@ export default {
         .catch((err) =>
           console.error(
             `[Sheets] (async) Update evidencia ${doc._id} ERROR:`,
+            err.message
+          )
+        );
+    }
+
+    return doc;
+  },
+
+  async updateEvidenciaResponsables(id, responsables) {
+    if (!id) throw new Error("ID no proporcionado");
+    if (!mongoose.Types.ObjectId.isValid(id)) throw new Error("ID inválido");
+
+    const responsablesIds = normalizeResponsablesInput(responsables);
+
+    const totalUsuarios = await User.countDocuments({
+      _id: {
+        $in: responsablesIds.map((rid) => new mongoose.Types.ObjectId(rid)),
+      },
+    });
+    if (totalUsuarios !== responsablesIds.length) {
+      throw new Error("Uno o más responsables no existen");
+    }
+
+    const doc = await Evidencia.findByIdAndUpdate(
+      id,
+      {
+        responsables: responsablesIds,
+      },
+      { new: true }
+    )
+      .populate({ path: "actividad", populate: { path: "componente" } })
+      .populate("responsables")
+      .select("-__v");
+
+    if (!doc) throw new Error("Evidencia no encontrada");
+
+    if (shouldAwaitSheetSync()) {
+      try {
+        await runWithTimeout(
+          () => updateEvidenciaInSheet(doc),
+          "Update responsables evidencia",
+          doc._id
+        );
+      } catch (err) {
+        // ya logueado dentro de runWithTimeout
+      }
+    } else {
+      updateEvidenciaInSheet(doc)
+        .then(() =>
+          console.log(`[Sheets] (async) Update responsables evidencia ${doc._id} OK`)
+        )
+        .catch((err) =>
+          console.error(
+            `[Sheets] (async) Update responsables evidencia ${doc._id} ERROR:`,
             err.message
           )
         );

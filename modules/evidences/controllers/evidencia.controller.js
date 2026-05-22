@@ -104,5 +104,36 @@ export const updateEstado = async (req, res) => {
   }
 };
 
+const updateResponsables = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const responsables = req.body.responsables ?? req.body.responsable;
+    const item = await evidenciaService.updateEvidenciaResponsables(
+      id,
+      responsables
+    );
+    return res.json({ success: true, data: item });
+  } catch (err) {
+    const status =
+      err.message.includes("no proporcionado") ||
+      err.message.includes("inválid") ||
+      err.message.includes("al menos un responsable")
+        ? 400
+        : err.message.includes("no encontrada") ||
+          err.message.includes("no existen")
+        ? 404
+        : 500;
+    return res.status(status).json({ success: false, message: err.message });
+  }
+};
+
 // Agregar al export default
-export default { create, getAll, getById, getTasksGrouped, updateEstado, getActividadesByTrimestre };
+export default {
+  create,
+  getAll,
+  getById,
+  getTasksGrouped,
+  updateEstado,
+  updateResponsables,
+  getActividadesByTrimestre,
+};

@@ -363,11 +363,11 @@ back/
 ├── utils/
 │   └── auth.verify.js              # Middleware de verificación de JWT
 │
-└── run-*.js                        # Scripts ejecutables (runners)
-    ├── run-initial-load.js
-    ├── run-update07.js
-    ├── run-updateOctubreASeptiembre.js
-    └── run-updateSheet.js
+└── scripts/                        # Scripts ejecutables (runners)
+   ├── run-initial-load.js
+   ├── run-update07.js
+   ├── run-updateOctubreASeptiembre.js
+   └── run-updateSheet.js
 ```
 
 **Convenciones:**

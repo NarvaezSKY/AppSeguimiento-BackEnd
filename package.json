@@ -6,9 +6,13 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon --watch . --exec node index.js",
-    "initial-load": "node run-initial-load.js",
+    "initial-load": "node scripts/run-initial-load.js",
     "migrate": "node scripts/migrate.js",
-    "update": "node run-updateSheet.js"
+    "update": "node scripts/run-updateSheet.js",
+    "update-evidencias-2026": "node scripts/run-updateFechaEntrega2026.js",
+    "update-evidencias-2026:apply": "node scripts/run-updateFechaEntrega2026.js --execute",
+    "update-sheets-2026": "node scripts/run-updateSheetFechaEntrega2026.js",
+    "update-sheets-2026:apply": "node scripts/run-updateSheetFechaEntrega2026.js --execute"
   },
   "engines": {
     "node": ">=16"

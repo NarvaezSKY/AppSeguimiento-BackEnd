@@ -22,6 +22,9 @@ router.get("/tasks",verifyAuth, evidenciaController.getTasksGrouped);
 // Ruta para actualizar solo el estado de una evidencia
 router.patch("/:id/estado", verifyAuth,evidenciaController.updateEstado);
 
+// Ruta para actualizar responsables de una evidencia
+router.patch("/:id/responsables", verifyAuth, evidenciaController.updateResponsables);
+
 router.get("/:id", verifyAuth,evidenciaController.getById);
 
 export default router;
