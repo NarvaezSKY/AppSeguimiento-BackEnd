@@ -2,7 +2,8 @@
 const getResponsables = async (req, res) => {
   try {
     const { id } = req.params;
-    const usuarios = await componenteService.getResponsablesByComponente(id);
+    const { anio } = req.query;
+    const usuarios = await componenteService.getResponsablesByComponente(id, anio ? Number(anio) : undefined);
     return res.json({ success: true, data: usuarios });
   } catch (err) {
     const status = err.message.includes("no proporcionado") ? 400 : err.message.includes("inválido") ? 400 : 500;

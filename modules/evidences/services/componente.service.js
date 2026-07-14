@@ -50,7 +50,7 @@ export default {
    * @param {string} componenteId
    * @returns {Promise<Array>} Array de usuarios únicos
    */
-  async getResponsablesByComponente(componenteId) {
+  async getResponsablesByComponente(componenteId, anio) {
     if (!componenteId) throw new Error("ID de componente no proporcionado");
     if (!mongoose.Types.ObjectId.isValid(componenteId)) throw new Error("ID de componente inválido");
     // Buscar actividades del componente
@@ -61,7 +61,9 @@ export default {
     if (!actividades.length) return [];
     const actividadIds = actividades.map(a => a._id);
     // Buscar evidencias de esas actividades
-    const evidencias = await Evidencia.find({ actividad: { $in: actividadIds } }).select("responsables");
+    const query = { actividad: { $in: actividadIds } };
+    if (anio != null) query.anio = anio;
+    const evidencias = await Evidencia.find(query).select("responsables");
     const userIds = new Set();
     for (const ev of evidencias) {
       (ev.responsables || []).forEach(id => userIds.add(id.toString()));
